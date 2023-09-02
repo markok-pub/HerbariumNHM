@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+#  usage: sbatch ./gpu_runner.scrpt          
+#
+#SBATCH -J A100     
+#SBATCH -N 1                          #use -N only if you use both GPUs on the nodes, otherwise leave this line out
+#SBATCH --ntasks-per-node=64
+#SBATCH --partition zen3_0512_a100x2
+#SBATCH --qos zen3_0512_a100x2
+#SBATCH --gres=gpu:2                   #or --gres=gpu:1 if you only want to use half a node
+
+python3 ./DAN/OCR/document_OCR/dan/main_dan.py

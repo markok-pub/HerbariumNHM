@@ -55,7 +55,7 @@ from os.path import isfile, join
 
 from tensorboardX import SummaryWriter
 
-dataset_path = "../data/jp2/"
+dataset_path = "./data/jp2/"
 
 mypath = dataset_path
 all_image_files = [join(dirpath,f) for (dirpath, dirnames, filenames) in walk(mypath) for f in filenames] 
@@ -68,7 +68,7 @@ print(len(all_image_files))
 # Path to the folder where the datasets are/should be downloaded (e.g. CIFAR10)
 DATASET_PATH = dataset_path
 # Path to the folder where the pretrained models are saved
-CHECKPOINT_PATH = "../saved_models/contrastive_models"
+CHECKPOINT_PATH = "./saved_models"
 # In this notebook, we use data loaders with heavier computational processing. It is recommended to use as many
 # workers as possible in a data loader, which corresponds to the number of CPU cores
 NUM_WORKERS = os.cpu_count()
@@ -117,14 +117,14 @@ class ContrastiveTransformations(object):
 
 contrast_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
                                           transforms.RandomResizedCrop(size=96),
-                                          #transforms.RandomApply([
-                                          #    transforms.ColorJitter(brightness=0.5,
-                                          #                           contrast=0.5,
-                                          #                           saturation=0.5,
-                                          #                           hue=0.1)
-                                          #], p=0.8),
+                                          transforms.RandomApply([
+                                              transforms.ColorJitter(brightness=0.5,
+                                                                     contrast=0.5,
+                                                                     saturation=0.5,
+                                                                     hue=0.1)
+                                          ], p=0.8),
                                           transforms.RandomGrayscale(p=0.2),
-                                          transforms.GaussianBlur(kernel_size=9),
+                                          #transforms.GaussianBlur(kernel_size=9),
                                           transforms.ToTensor(),
                                           transforms.Normalize((0.5,), (0.5,))
                                          ])
@@ -202,17 +202,17 @@ class SimCLR(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         return self.info_nce_loss(batch, mode='train')
 
-    def validation_step(self, batch, batch_idx):
-        self.info_nce_loss(batch, mode='val')
+    #def validation_step(self, batch, batch_idx):
+    #    self.info_nce_loss(batch, mode='val')
 
-def train_simclr(batch_size, max_epochs=500, **kwargs):
+def train_simclr(batch_size, max_epochs=2, **kwargs):
     log_dir = "../logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     
     trainer = pl.Trainer(default_root_dir=CHECKPOINT_PATH +  "/SimCLR",
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
                          max_epochs=max_epochs,
-                         callbacks=[ModelCheckpoint(save_weights_only=True, mode='max', monitor='val_acc_top5'),
+                         callbacks=[ModelCheckpoint(save_weights_only=True, mode='max'),
                                     LearningRateMonitor('epoch')])
     trainer.logger._default_hp_metric = None # Optional logging argument that we don't need
 
@@ -222,7 +222,7 @@ def train_simclr(batch_size, max_epochs=500, **kwargs):
         print(f'Found pretrained model at {pretrained_filename}, loading...')
         model = SimCLR.load_from_checkpoint(pretrained_filename) # Automatically loads the model with the saved hyperparameters
     else:
-        train_loader = DataLoader(dataset_sub, batch_size = batch_size, shuffle = True, num_workers = 4)
+        train_loader = DataLoader(dataset_sub, batch_size = batch_size, shuffle = True, num_workers = NUM_WORKERS)
         
         pl.seed_everything(42) # To be reproducable
         model = SimCLR(max_epochs=max_epochs, **kwargs)
@@ -231,10 +231,11 @@ def train_simclr(batch_size, max_epochs=500, **kwargs):
         
     return model
 
-simclr_model = train_simclr(batch_size=100,
+# RUN THE TRAINING 
+simclr_model = train_simclr(batch_size=256,
                             hidden_dim=128,
                             lr=5e-4,
                             temperature=0.07,
                             weight_decay=1e-4,
-                            max_epochs=15)
+                            max_epochs=500)
 

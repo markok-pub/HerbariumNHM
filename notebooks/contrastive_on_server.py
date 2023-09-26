@@ -56,7 +56,7 @@ from os.path import isfile, join
 from tensorboardX import SummaryWriter
 
 #print("/tmp")
-dataset_path = "../data/resized/"
+dataset_path = "./data/resized/"
 
 mypath = dataset_path
 all_image_files = [join(dirpath,f) for (dirpath, dirnames, filenames) in walk(mypath) for f in filenames] 
@@ -117,13 +117,13 @@ class ContrastiveTransformations(object):
 
 
 contrast_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
-                                          transforms.RandomResizedCrop(size=96),
-                                          transforms.RandomApply([
-                                              transforms.ColorJitter(brightness=0.5,
-                                                                     contrast=0.5,
-                                                                     saturation=0.5,
-                                                                     hue=0.1)
-                                          ], p=0.8),
+                                          transforms.RandomResizedCrop(size=224),
+                                          #transforms.RandomApply([
+                                          #    transforms.ColorJitter(brightness=0.5,
+                                          #                           contrast=0.5,
+                                          #                           saturation=0.5,
+                                          #                           hue=0.1)
+                                          #], p=0.8),
                                           transforms.RandomGrayscale(p=0.2),
                                           #transforms.GaussianBlur(kernel_size=9),
                                           transforms.ToTensor(),
@@ -218,8 +218,8 @@ def train_simclr(batch_size, max_epochs=500, **kwargs):
     trainer.logger._default_hp_metric = None # Optional logging argument that we don't need
 
     # Check whether pretrained model exists. If yes, load it and skip training
-    pretrained_filename = CHECKPOINT_PATH +  '/SimCLR.ckpt'
-    if os.path.isfile(pretrained_filename):
+    pretrained_filename = CHECKPOINT_PATH +  '/SimCLR_new.ckpt'
+    if os.path.isfile("not_now" + pretrained_filename):
         print(f'Found pretrained model at {pretrained_filename}, loading...')
         model = SimCLR.load_from_checkpoint(pretrained_filename) # Automatically loads the model with the saved hyperparameters
     else:

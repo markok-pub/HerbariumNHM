@@ -1,0 +1,54 @@
+[rank: 0] Global seed set to 42
+15974
+Device: cuda:0
+Number of workers: 256
+<class '__main__.SimCLR'>
+12780
+Number of training examples: 12780
+Number of test examples: 3194
+<class 'tuple'>
+  0%|          | 0/200 [00:00<?, ?it/s]
+  0%|          | 0/50 [00:00<?, ?it/s]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+[rank: 0] Global seed set to 42
+You are using a CUDA device ('NVIDIA A100-PCIE-40GB') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+
+  | Name  | Type   | Params
+---------------------------------
+0 | model | Linear | 102 K 
+---------------------------------
+102 K     Trainable params
+0         Non-trainable params
+102 K     Total params
+0.410     Total estimated model params size (MB)
+SLURM auto-requeueing enabled. Setting signal handlers.
+/home/fs71186/kadic/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:430: PossibleUserWarning: The dataloader, val_dataloader, does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` (try 256 which is the number of cpus on this machine) in the `DataLoader` init to improve performance.
+  rank_zero_warn(
+/home/fs71186/kadic/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:430: PossibleUserWarning: The dataloader, train_dataloader, does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` (try 256 which is the number of cpus on this machine) in the `DataLoader` init to improve performance.
+  rank_zero_warn(
+`Trainer.fit` stopped: `max_epochs=1000` reached.
+You are using a CUDA device ('NVIDIA A100-PCIE-40GB') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+SLURM auto-requeueing enabled. Setting signal handlers.
+/home/fs71186/kadic/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:478: PossibleUserWarning: Your `test_dataloader`'s sampler has shuffling enabled, it is strongly recommended that you turn shuffling off for val/test dataloaders.
+  rank_zero_warn(
+/home/fs71186/kadic/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:430: PossibleUserWarning: The dataloader, test_dataloader, does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` (try 256 which is the number of cpus on this machine) in the `DataLoader` init to improve performance.
+  rank_zero_warn(
+You are using a CUDA device ('NVIDIA A100-PCIE-40GB') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+SLURM auto-requeueing enabled. Setting signal handlers.
+Best Path:saved_models/contrastive_models/LogisticRegression/lightning_logs/version_1521767/checkpoints/epoch=209-step=42000.ckpt
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+       Test metric             DataLoader 0
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+        test_acc            0.9925665259361267
+        test_loss           0.10251585394144058
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Model_11_btch_64_1000
+1000 epochs
+Train results: 0.9925665259361267
+Test set results: 0.8553537726402283

@@ -71,7 +71,65 @@ test_image_files = [join(dirpath,f) for (dirpath, dirnames, filenames) in walk(d
 
 print(len(test_image_files))
 
-all_image_files = train_image_files + test_image_files
+################################################################################
+################################################################################
+# MULTIPLE AUGMENTATIONS FOR LESS REPRESENTED SPECIMENS - MIN 60.
+CONST_ENLARGE = 60
+ground_truths = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_metadata.json"
+
+train_image_files = sorted(train_image_files)
+test_image_files = sorted(test_image_files)
+
+import json
+# Opening JSON file
+f = open(ground_truths)
+ground_truth_data = json.load(f)
+gt_annot = ground_truth_data["annotations"]
+f.close()
+
+train_data = []
+test_data = []
+
+for i, img in enumerate(train_image_files):
+    train_data.append((img, gt_annot[i]['category_id']))
+
+labels = []
+label_count = {}
+for img, annot in train_data:
+    if annot not in labels:
+        labels.append(annot)
+        label_count[str(annot)] = 1
+    else:
+        label_count[str(annot)] = int(label_count[str(annot)]) + 1
+        
+sorted_count = dict(sorted(label_count.items(), key=lambda item: item[1]))
+
+enlarge_dict = {}
+for cat,cnt in list(sorted_count.items()):
+    if(int(cnt) < CONST_ENLARGE):
+        enlarge_dict[cat] = cnt
+
+needed_categories = enlarge_dict
+print(len(needed_categories))
+
+cat_sum = 0
+for key in needed_categories:
+    cat_sum += needed_categories[key]
+print(cat_sum)
+
+added_train_data = []
+used = []
+for img, annot in train_data:
+    if (str(annot) in needed_categories) and (annot not in used):
+        used.append(annot)
+        for i in range(CONST_ENLARGE - int(needed_categories[str(annot)])):
+            added_train_data.append(img)
+            
+################################################################################
+################################################################################
+
+all_image_files = train_image_files + test_image_files + added_train_data
+
 
 # Path to the folder where the datasets are/should be downloaded (e.g. CIFAR10)
 DATASET_PATH = data_path_train

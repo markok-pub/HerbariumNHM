@@ -60,10 +60,10 @@ from os.path import isfile, join
 import wandb
 import random
 
-data_path_train = "/gpfs/data/fs71186/kadic/train_images"
-data_path_test = "/gpfs/data/fs71186/kadic/test_images"
+data_path_train = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_images"
+data_path_test = "/gpfs/data/fs71186/kadic/Herbarium_2022/test_images"
 
-ground_truths = "/gpfs/data/fs71186/kadic/train_metadata.json"
+ground_truths = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_metadata.json"
 
 train_image_files = [join(dirpath,f) for (dirpath, dirnames, filenames) in walk(data_path_train) for f in filenames] 
 
@@ -129,7 +129,7 @@ sorted_count = dict(sorted(label_count.items(), key=lambda item: item[1]))
 #print(list(sorted_count.items())[:200])
 
 print(len(list(sorted_count.items())))
-biggest_categories = list(sorted_count.items())[12333:]
+biggest_categories = list(sorted_count.items())[15301:]
 #print(list(sorted_count.items())[12333:])
 
 print(len(biggest_categories))
@@ -182,8 +182,17 @@ class ImageDataset(Dataset):
         return (image_tensor, target)
     
 
-tr_files = reduced_train_data_subbed[0:12772] #train_data[0:543991]
-ts_files = reduced_train_data_subbed[12772:15965] #train_data[543991:]
+#tr_files = reduced_train_data_subbed[0:12772] #train_data[0:543991]
+#ts_files = reduced_train_data_subbed[12772:15965] #train_data[543991:]
+
+cpy = reduced_train_data_subbed
+
+import random
+
+random.shuffle(cpy)
+
+tr_files = cpy[0:12780] #train_data[0:543991]
+ts_files = cpy[12780:15974] #train_data[543991:]
 
 print(len(tr_files))
 
@@ -231,6 +240,9 @@ class ResNet(pl.LightningModule):
 
         self.log(mode + '_loss', loss)
         self.log(mode + '_acc', acc)
+        
+        wandb.log({"acc": acc, "loss": loss})
+        
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -242,16 +254,20 @@ class ResNet(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         self._calculate_loss(batch, mode='test')
         
-train_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
-                                       transforms.RandomResizedCrop(size=96, scale=(0.8, 1.0)),
+
+print("256 + 256 + 1.0, btch_128 ")
+
+train_transforms = transforms.Compose([#transforms.RandomHorizontalFlip(),
+                                       transforms.Resize((256, 256)),
+                                       #transforms.RandomResizedCrop(size=256, scale=(1.0, 1.0)),
                                        transforms.RandomGrayscale(p=0.2),
-                                       transforms.GaussianBlur(kernel_size=9, sigma=(0.1, 0.5)),
+                                       #transforms.GaussianBlur(kernel_size=9, sigma=(0.1, 0.5)),
                                        transforms.ToTensor(),
                                        transforms.Normalize((0.5,), (0.5,))
                                        ])
 train_img_data = ImageDataset(tr_files, transform = train_transforms)
 
-img_transforms = transforms.Compose([transforms.Resize((1000, 666)),
+img_transforms = transforms.Compose([transforms.Resize((256, 256)),
                                      transforms.ToTensor(),
                                      transforms.Normalize((0.5,), (0.5,))])
 
@@ -280,7 +296,7 @@ def train_resnet(batch_size, max_epochs=100, **kwargs):
                                   drop_last=False, pin_memory=True, num_workers=NUM_WORKERS)
 
     # Check whether pretrained model exists. If yes, load it and skip training
-    pretrained_filename = os.path.join(CHECKPOINT_PATH, "ResNet.ckpt")
+    pretrained_filename = os.path.join(CHECKPOINT_PATH, "ResNet_4.ckpt")
     if os.path.isfile(pretrained_filename):
         print("Found pretrained model at %s, loading..." % pretrained_filename)
         model = ResNet.load_from_checkpoint(pretrained_filename)
@@ -298,10 +314,28 @@ def train_resnet(batch_size, max_epochs=100, **kwargs):
     return model, result
 
 
-resnet_model, resnet_result = train_resnet(batch_size=64,
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="ResNet-Baseline",
+    name= "200ep-resnet-noflip-norecrop-256-15k",
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": 1e-3,
+    "architecture": "ResNet-18",
+    "dataset": "Subset-200",
+    "epochs": 200,
+    }
+)
+
+
+resnet_model, resnet_result = train_resnet(batch_size=128,
                                            num_classes=200,
                                            lr=1e-3,
                                            weight_decay=2e-4,
                                            max_epochs=200)
+
+print("NO RECROP, NO FLIP, 256X256, 200 largest categories, 200 epochs")
+for i in range(20):
+    print("###########")
 print(f"Accuracy on training set: {100*resnet_result['train']:4.2f}%")
 print(f"Accuracy on test set: {100*resnet_result['test']:4.2f}%")

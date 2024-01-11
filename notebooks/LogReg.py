@@ -134,7 +134,7 @@ sorted_count = dict(sorted(label_count.items(), key=lambda item: item[1]))
 #print(list(sorted_count.items())[:200])
 
 #print(len(list(sorted_count.items())))
-biggest_categories = list(sorted_count.items())[15301:]
+biggest_categories = list(sorted_count.items())[15001:]
 #print(list(sorted_count.items())[12333:])
 #print(len(biggest_categories))
 cat_sum = 0
@@ -200,7 +200,7 @@ class ImageDataset(Dataset):
 
 class SimCLR(pl.LightningModule):
 
-    def __init__(self, hidden_dim, lr, temperature, weight_decay, max_epochs=500):
+    def __init__(self, hidden_dim, lr, temperature, weight_decay, max_epochs=700):
         super().__init__()
         self.save_hyperparameters()
         assert self.hparams.temperature > 0.0, 'The temperature must be a positive float!'
@@ -267,9 +267,10 @@ model_8 = "./saved_models/contrastive_models/8_SIM_CLR_VAL/lightning_logs/versio
 model_10 = "./saved_models/contrastive_models/10_SIM_CLR_VAL/lightning_logs/version_1436185/checkpoints/epoch=273-step=1797440.ckpt"
 model_11 = "./saved_models/contrastive_models/11_SIM_CLR_VAL/lightning_logs/version_1443323/checkpoints/epoch=197-step=1624392.ckpt" 
 model_12 = "./saved_models/contrastive_models/12_SIM_CLR_VAL/lightning_logs/version_1472359/checkpoints/epoch=71-step=590688.ckpt"
-
-
-pretrained_filename = model_12
+model_13 = "./saved_models/contrastive_models/13_SIM_CLR_VAL/lightning_logs/version_1527911/checkpoints/epoch=193-step=1591576.ckpt"
+model_14 = "./saved_models/contrastive_models/14_SIM_CLR_VAL/lightning_logs/version_1565454/checkpoints/epoch=242-step=2367063.ckpt"
+model_15 = "./saved_models/contrastive_models/15_SIM_CLR_VAL/lightning_logs/version_1607025/checkpoints/epoch=202-step=1977423.ckpt"
+pretrained_filename = model_11
     
 simclr_model = SimCLR.load_from_checkpoint(pretrained_filename)
 #simclr_model = torch.load(pretrained_filename)
@@ -331,8 +332,8 @@ import random
 
 random.shuffle(cpy)
 
-tr_files = cpy[0:12780] #train_data[0:543991]
-ts_files = cpy[12780:15974] #train_data[543991:]
+tr_files = cpy[0:int(0.9*len(cpy))] #train_data[0:543991]
+ts_files = cpy[int(0.9*len(cpy)):] #train_data[543991:]
 
 print(len(tr_files))
 
@@ -379,7 +380,7 @@ train_feats_simclr = prepare_data_features(simclr_model, train_img_data)
 test_feats_simclr = prepare_data_features(simclr_model, test_img_data)
 
 
-def train_logreg(batch_size, train_feats_data, test_feats_data, model_suffix, max_epochs=1000, **kwargs):
+def train_logreg(batch_size, train_feats_data, test_feats_data, model_suffix, max_epochs=700, **kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "LogisticRegression"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
@@ -413,7 +414,10 @@ def train_logreg(batch_size, train_feats_data, test_feats_data, model_suffix, ma
     train_result = trainer.test(model, train_loader, verbose=True)
     test_result = trainer.test(model, test_loader, verbose=False)
     result = {"train": train_result[0]["test_acc"], "test": test_result[0]["test_acc"]}
-
+    
+    print(len(test_result))
+    print(test_result[0].keys())
+    
     return model, result
 
 #wandb.init(
@@ -432,9 +436,9 @@ def train_logreg(batch_size, train_feats_data, test_feats_data, model_suffix, ma
 _, set_results = train_logreg(batch_size=64,
                                         train_feats_data=train_feats_simclr,
                                         test_feats_data=test_feats_simclr,
-                                        model_suffix="new_12",
+                                        model_suffix="new_16_3",
                                         feature_dim=train_feats_simclr.tensors[0].shape[1],
-                                        num_classes=200,
+                                        num_classes=500,
                                         lr=1e-3,
                                         weight_decay=1e-3)
 
@@ -447,8 +451,8 @@ dataset_size = 15000
 test_scores = set_results["test"]
 train_scores = set_results["train"]
 
-print("Model_12_btch_64_1000")
-print("1000 epochs")
+print("Model_11_btch_64_700_500_categories")
+print("700 epochs")
 print("Train results: " + str(train_scores))
 print("Test set results: "+ str(test_scores))
 

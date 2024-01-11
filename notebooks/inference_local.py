@@ -38,53 +38,37 @@ from torchvision import transforms
 # PyTorch Lightning
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-
-# Import tensorboard
-#%load_ext tensorboard
-
 from tensorboard.plugins import projector
-
 import cv2
 import pathlib
 import os
 import datetime
-#import tensorflow as tf
-
 from os import listdir, walk
 from os.path import isfile, join
-
-
-from os import listdir, walk
-from os.path import isfile, join
-
 import wandb
 import random
 
-data_path_train = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_images"
-data_path_test = "/gpfs/data/fs71186/kadic/Herbarium_2022/test_images"
+#IMPORT TEST FILES
 
-ground_truths = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_metadata.json"
+data_path_train = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_images"
+ground_truths_train = "/gpfs/data/fs71186/kadic/Herbarium_2022/train_metadata.json" 
 
 train_image_files = [join(dirpath,f) for (dirpath, dirnames, filenames) in walk(data_path_train) for f in filenames] 
 
-#print(len(train_image_files))
-
-#test_image_files = [join(dirpath,f) for (dirpath, dirnames, filenames) in walk(data_path_test) for f in filenames] 
-
-#print(len(test_image_files))
-
 train_image_files = sorted(train_image_files)
-#test_image_files = sorted(test_image_files)
-
 
 import json
-f = open(ground_truths)
+f = open(ground_truths_train)
 ground_truth_data = json.load(f)
 gt_annot = ground_truth_data["annotations"]
 f.close()
 
-train_data_init = []
-#REMOVING 4 FOR LOG REG ALGO
+train_data = []
+test_image_files = []
+cats = {}
+test_data_res = []
+
+#REMOVING 1 FOR LOG REG ALGO
 for i, img in enumerate(train_image_files):
     cat_id = gt_annot[i]['category_id']
     if(cat_id == 15501):
@@ -95,38 +79,21 @@ for i, img in enumerate(train_image_files):
         cat_id = 7000
     if(cat_id == 15504):
         cat_id = 9000
-    train_data_init.append((img, int(cat_id)))
-
-#labels = []
-#label_count = {}
-#for img, annot in train_data:
-#    if annot not in labels:
-#        labels.append(annot)
-#        label_count[str(annot)] = 1
-#    else:
-#        label_count[str(annot)] = int(label_count[str(annot)]) + 1
-        
-#sorted_count = dict(sorted(label_count.items(), key=lambda item: item[1]))
-
-#diff_annot = {}
-
-train_data = train_data_init
-#test_data = []
-
-#for img, categ in train_data_init:
-#    if(diff_annot[categ] > 0):
-#        test_data.append((img,categ))
-#        diff_annot[categ] -= 1
-#    else:
-#        train_data.append((img,categ))
-
-#train_data_init = []
-#print(len(train_image_files))
+    train_data.append((img, int(cat_id)))    
+    cats[cat_id] = 5
+    
+for img, categ in train_data:
+    if(cats[categ] > 0):
+        test_image_files.append(img)
+        test_data_res.append(categ)
+        cats[categ] -= 1
+    
+print(len(train_image_files))
 print(len(train_data))
-#print(len(test_data))
+print(len(test_image_files))
+print(len(test_data_res))
 
-# Path to the folder where the datasets are/should be downloaded (e.g. CIFAR10)
-DATASET_PATH = data_path_train
+#SET UP
 # Path to the folder where the pretrained models are saved
 CHECKPOINT_PATH = "./saved_models/contrastive_models"
 # In this notebook, we use data loaders with heavier computational processing. It is recommended to use as many
@@ -144,16 +111,16 @@ device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("
 print("Device:", device)
 print("Number of workers:", NUM_WORKERS)
 
-class ImageDataset(Dataset):
+## DATASET CLASS
+
+class TestImageDataset(Dataset):
     def __init__(self, paths,transform):
-        self.paths = [i[0] for i in paths]
+        self.paths = paths
         self.transform = transform
-        self.target_paths = [i[1] for i in paths]
         
     def __len__(self):
         return len(self.paths)
     
-
     def __getitem__(self, index):
         image_path = self.paths[index]
         image_l = Image.open(image_path)
@@ -162,11 +129,9 @@ class ImageDataset(Dataset):
         if self.transform:
             image_tensor = self.transform(image)
         
-        target = self.target_paths[index]
-        
-        return (image_tensor, target)
+        return image_tensor
     
-    
+## SIMCLR CLASS TO LOAD THE MODEL
 
 class SimCLR(pl.LightningModule):
 
@@ -230,23 +195,18 @@ class SimCLR(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         self.info_nce_loss(batch, mode='val')
         
-
-        
-model_7 = "./saved_models/contrastive_models/7_SIM_CLR_VAL/lightning_logs/version_1350522/checkpoints/epoch=86-step=1141527.ckpt"        
-model_8 = "./saved_models/contrastive_models/8_SIM_CLR_VAL/lightning_logs/version_1358102/checkpoints/epoch=69-step=918470.ckpt"
-model_10 = "./saved_models/contrastive_models/10_SIM_CLR_VAL/lightning_logs/version_1436185/checkpoints/epoch=273-step=1797440.ckpt"
-model_11 = "./saved_models/contrastive_models/11_SIM_CLR_VAL/lightning_logs/version_1443323/checkpoints/epoch=197-step=1624392.ckpt" 
+# LOAD SIMCLR MODEL
+model_11 = "./saved_models/contrastive_models/11_SIM_CLR_VAL/lightning_logs/version_1443323/checkpoints/epoch=197-step=1624392.ckpt"
 model_14 = "./saved_models/contrastive_models/14_SIM_CLR_VAL/lightning_logs/version_1565454/checkpoints/epoch=242-step=2367063.ckpt"
 model_15 = "./saved_models/contrastive_models/15_SIM_CLR_VAL/lightning_logs/version_1607025/checkpoints/epoch=202-step=1977423.ckpt"
 
-pretrained_filename = model_15
+pretrained_filename = model_11
     
 simclr_model = SimCLR.load_from_checkpoint(pretrained_filename)
-#simclr_model = torch.load(pretrained_filename)
 
 print(type(simclr_model))
-#train_feats_simclr = prepare_data_features(simclr_model, dataset_full_nocut)
 
+# LOGREG CLASS 
 
 class LogisticRegression(pl.LightningModule):
 
@@ -266,16 +226,12 @@ class LogisticRegression(pl.LightningModule):
                                                       gamma=0.1)
         return [optimizer], [lr_scheduler]
 
-    def _calculate_loss(self, batch, mode='train', btch_ind = 0):
+    def _calculate_loss(self, batch, mode='train'):
         feats, labels = batch
         preds = self.model(feats)
         loss = F.cross_entropy(preds, labels)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
-        
-        if(mode == 'test'):
-            np.save(str("./saved_rez/w_test_rez_" + str(btch_ind) + ".npy"), np.asarray(preds.argmax(dim=-1)))
-            np.save(str("./saved_true/w_real_rez_" + str(btch_ind) + ".npy"), np.asarray(labels)
-            
+
         self.log(mode + '_loss', loss)
         self.log(mode + '_acc', acc)
         
@@ -290,39 +246,17 @@ class LogisticRegression(pl.LightningModule):
         self._calculate_loss(batch, mode='val')
 
     def test_step(self, batch, batch_idx):
-        self._calculate_loss(batch, mode='test', batch_idx)
-        
-        
+        self._calculate_loss(batch, mode='test')
+    
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        return self.model(batch[0])
+    
+
 img_transforms = transforms.Compose([transforms.Resize((1000, 666)),
                                      transforms.ToTensor(),
                                      transforms.Normalize((0.5,), (0.5,))])
-#ImageDataset(train_image_files, 
-#                       transform=img_transforms)
 
-cpy = train_data
-
-import random
-
-random.shuffle(cpy)
-
-tr_files = cpy[0:int(0.93*len(cpy))] #train_data[0:543991]
-ts_files = cpy[int(0.93*len(cpy)):] #train_data[543991:]
-
-print(len(tr_files))
-
-save_test = np.asarray(ts_files)
-np.save("test_files_new.npy", save_test)
-
-train_img_data = ImageDataset(tr_files, transform = img_transforms)
-
-test_img_data = ImageDataset(ts_files, transform = img_transforms)
-
-
-print("Number of training examples:", len(train_img_data))
-print("Number of test examples:", len(test_img_data))
-
-print(type(train_img_data[0]))
-
+test_img_data = TestImageDataset(test_image_files, transform = img_transforms)
 
 @torch.no_grad()
 def prepare_data_features(model, dataset):
@@ -334,101 +268,67 @@ def prepare_data_features(model, dataset):
 
     # Encode all images
     data_loader = data.DataLoader(dataset, batch_size=64, num_workers=NUM_WORKERS, shuffle=False, drop_last=False)
-    feats, labels = [], []
-    for batch_imgs, batch_labels in tqdm(data_loader):
+    feats = []
+    for batch_imgs in tqdm(data_loader):
         #print(len(batch_imgs))
         batch_imgs = batch_imgs.to(device)
         batch_feats = network(batch_imgs)
         feats.append(batch_feats.detach().cpu())
-        labels.append(batch_labels)
 
     feats = torch.cat(feats, dim=0)
-    labels = torch.cat(labels, dim=0)
 
-    # Sort images by labels
-    labels, idxs = labels.sort()
-    feats = feats[idxs]
+    return data.TensorDataset(feats)
 
-    return data.TensorDataset(feats, labels)
-
-
-train_feats_simclr = prepare_data_features(simclr_model, train_img_data)
+# PREPARE TEST SET DATA FEATURES
 test_feats_simclr = prepare_data_features(simclr_model, test_img_data)
-torch.save(test_feats_simclr, "test_features.pt")
 
-def train_logreg(batch_size, train_feats_data, test_feats_data, model_suffix, max_epochs=1000, **kwargs):
-    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "LogisticRegression"),
+# LOAD UP THE LOGISTIC REGRESSION MODEL
+model_14_logreg = "./saved_models/contrastive_models/LogisticRegression/lightning_logs/version_1614704/checkpoints/epoch=609-step=8004420.ckpt"
+
+model_15_logreg = "./saved_models/contrastive_models/LogisticRegression/lightning_logs/version_1617998/checkpoints/epoch=609-step=8004420.ckpt"
+
+model_11_new = "./saved_models/contrastive_models/LogisticRegression/lightning_logs/version_1632116/checkpoints/epoch=639-step=7978240.ckpt"
+
+pretrained_filename = model_11_new
+
+if os.path.isfile(pretrained_filename):
+    print(f"Found pretrained model at {pretrained_filename}, loading...")
+    model = LogisticRegression.load_from_checkpoint(pretrained_filename)
+    
+
+# DO THE INFERENCE
+test_loader = data.DataLoader(test_feats_simclr, batch_size=64, shuffle=False,
+                                   drop_last=False, pin_memory=True, num_workers=64)
+
+trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "LogisticRegression_inf"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
-                         devices=1,
-                         max_epochs=max_epochs,
-                         callbacks=[ModelCheckpoint(save_weights_only=True, mode='max', monitor='val_acc'),
-                                    LearningRateMonitor("epoch")],
-                         enable_progress_bar=False,
-                         check_val_every_n_epoch=10, 
-                            )
-    trainer.logger._default_hp_metric = None
+                         devices=1,)
 
-    # Data loaders
-    train_loader = data.DataLoader(train_feats_data, batch_size=batch_size, shuffle=True,
-                                   drop_last=False, pin_memory=True, num_workers=NUM_WORKERS)
-    test_loader = data.DataLoader(test_feats_data, batch_size=batch_size, shuffle=False,
-                                  drop_last=False,  pin_memory=True, num_workers=NUM_WORKERS)
+predictions = trainer.predict(model, test_loader)
 
-    # Check whether pretrained model exists. If yes, load it and skip training
-    pretrained_filename = os.path.join(CHECKPOINT_PATH, f"LogisticRegression_{model_suffix}.ckpt")
-    if os.path.isfile(pretrained_filename):
-        print(f"Found pretrained model at {pretrained_filename}, loading...")
-        model = LogisticRegression.load_from_checkpoint(pretrained_filename)
-    else:
-        pl.seed_everything(42)  # To be reproducable
-        model = LogisticRegression(**kwargs)
-        trainer.fit(model, train_loader, test_loader)
-        model = LogisticRegression.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
-        print("Best Path:" + str(trainer.checkpoint_callback.best_model_path))
-        print("Best Path:" + str(trainer.checkpoint_callback.best_model_path))
-        
-    # Test best model on train and validation set
-    train_result = trainer.test(model, train_loader, verbose=True)
-    test_result = trainer.test(model, test_loader, verbose=False)
-    print(test_result[0].keys())
-    result = {"train": train_result[0]["test_acc"], "test": test_result[0]["test_acc"]}
+predictions = torch.cat(predictions,dim = 0)
 
-    return model, result
+true_preds = predictions.argmax(dim=-1)
 
-wandb.init(
-    # set the wandb project where this run will be logged
-    project="NHM-LinReg-Classifier",
-    name="Model15-FULL_NewOneTwoThree",
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": 1e-3,
-    "architecture": "Model_15_224_lowbri_300-5",
-    "dataset": "Subset-200",
-    "epochs": 1000,
-    }
-)
+print(len(true_preds))
+print(true_preds[0])
 
-model_return, set_results = train_logreg(batch_size=64,
-                                        train_feats_data=train_feats_simclr,
-                                        test_feats_data=test_feats_simclr,
-                                        model_suffix="24_15_full_44",
-                                        feature_dim=train_feats_simclr.tensors[0].shape[1],
-                                        num_classes=15501,
-                                        lr=1e-3,
-                                        weight_decay=1e-3)
+print("finished predicting")
 
+labels = test_data_res
 
-#save_filename = CHECKPOINT_PATH +  '/Logistic_Regression/logreg_model05_2.ckpt'
-#logreg_model_best = deepcopy(_.state_dict())
-#torch.save(logreg_model_best.state_dict(), save_filename)
+print(len(labels))
+#acc = (true_preds == labels).float().mean()
+acc = 0
 
-dataset_size = 15000
-test_scores = set_results["test"]
-train_scores = set_results["train"]
+for t_pred, t_label in zip(true_preds, labels):
+    if(t_pred.item() == t_label):
+        acc += 1
 
-print("Model_15FR_btch_64_1000_FULL")
-print("700 epochs")
-print("Train results: " + str(train_scores))
-print("Test set results: "+ str(test_scores))
+print(acc/len(true_preds))
 
-#wandb.finish()
+pr = np.asarray(true_preds)
+rl = np.asarray(labels)
+
+np.save("preds_5.npy", pr)
+np.save("true_res_5.npy", rl)
